@@ -1661,6 +1661,26 @@ void World::SendDefenseMessage(uint32 zoneId, int32 textId)
     }
 }
 
+/// Send a packet to all players (or players selected team) in the zone (except self if mentioned)
+bool World::SendZoneMessage(uint32 zone, WorldPacket* packet, WorldSession* self /*= NULL*/, Team team /*= TEAM_NONE*/) const
+{
+    bool foundPlayerToSend = false;
+    for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+    {
+        if (itr->second &&
+            itr->second->GetPlayer() &&
+            itr->second->GetPlayer()->IsInWorld() &&
+            itr->second->GetPlayer()->GetZoneId() == zone &&
+            itr->second != self &&
+            (team == TEAM_NONE || itr->second->GetPlayer()->GetTeam() == team))
+        {
+            itr->second->SendPacket(packet);
+            foundPlayerToSend = true;
+        }
+    }
+    return foundPlayerToSend;
+}
+
 /// Kick (and save) all players
 void World::KickAll()
 {
