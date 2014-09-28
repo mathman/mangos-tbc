@@ -237,6 +237,19 @@ void MotionMaster::MoveRandomAroundPoint(float radius)
     }
 }
 
+void MotionMaster::MoveRandomAroundPoint(float x, float y, float z, float radius)
+{
+    if (m_owner->GetTypeId() == TYPEID_PLAYER)
+    {
+        sLog.outError("%s attempt to move random.", m_owner->GetGuidStr().c_str());
+    }
+    else
+    {
+        DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s move random.", m_owner->GetGuidStr().c_str());
+        Mutate(new RandomMovementGenerator<Creature>(x, y, z, radius));
+    }
+}
+
 void MotionMaster::MoveTargetedHome()
 {
     if (m_owner->hasUnitState(UNIT_STAT_LOST_CONTROL))

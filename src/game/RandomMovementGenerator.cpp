@@ -25,17 +25,11 @@
 #include "movement/MoveSpline.h"
 
 template<>
-RandomMovementGenerator<Creature>::RandomMovementGenerator(const Creature& creature)
-{
-    i_nextMoveTime = ShortTimeTracker(0);
-    i_radius = 0;
-}
-
-template<>
 void RandomMovementGenerator<Creature>::_setRandomLocation(Creature& creature)
 {
-    float respX, respY, respZ, respO, destX, destY, destZ, travelDistZ;
-    creature.GetRespawnCoord(respX, respY, respZ, &respO);
+    float respO, destX, destY, destZ, travelDistZ;
+    if (!i_x || !i_y || !i_z)
+        creature.GetRespawnCoord(i_x, i_y, i_z, &respO);
     Map const* map = creature.GetMap();
 
     // For 2D/3D system selection
@@ -49,8 +43,8 @@ void RandomMovementGenerator<Creature>::_setRandomLocation(Creature& creature)
     const float distanceX = range * std::cos(angle);
     const float distanceY = range * std::sin(angle);
 
-    destX = respX + distanceX;
-    destY = respY + distanceY;
+    destX = i_x + distanceX;
+    destY = i_y + distanceY;
 
     // prevent invalid coordinates generation
     MaNGOS::NormalizeMapCoord(destX);
@@ -62,7 +56,7 @@ void RandomMovementGenerator<Creature>::_setRandomLocation(Creature& creature)
     {
         // Limit height change
         const float distanceZ = float(rand_norm()) * std::sqrt(travelDistZ) / 2.0f;
-        destZ = respZ + distanceZ;
+        destZ = i_z + distanceZ;
         float levelZ = creature.GetTerrain()->GetWaterOrGroundLevel(destX, destY, destZ - 2.0f);
 
         // Problem here, we must fly above the ground and water, not under. Let's try on next tick
@@ -77,20 +71,20 @@ void RandomMovementGenerator<Creature>::_setRandomLocation(Creature& creature)
 
         // The fastest way to get an accurate result 90% of the time.
         // Better result can be obtained like 99% accuracy with a ray light, but the cost is too high and the code is too long.
-        destZ = map->GetHeight(destX, destY, respZ + travelDistZ - 2.0f);
+        destZ = map->GetHeight(destX, destY, i_z + travelDistZ - 2.0f);
 
-        if (std::fabs(destZ - respZ) > travelDistZ)              // Map check
+        if (std::fabs(destZ - i_z) > travelDistZ)              // Map check
         {
             // Vmap Horizontal or above
-            destZ = map->GetHeight(destX, destY, respZ - 2.0f);
+            destZ = map->GetHeight(destX, destY, i_z - 2.0f);
 
-            if (std::fabs(destZ - respZ) > travelDistZ)
+            if (std::fabs(destZ - i_z) > travelDistZ)
             {
                 // Vmap Higher
-                destZ = map->GetHeight(destX, destY, respZ + travelDistZ - 2.0f);
+                destZ = map->GetHeight(destX, destY, i_z + travelDistZ - 2.0f);
 
                 // let's forget this bad coords where a z cannot be find and retry at next tick
-                if (std::fabs(destZ - respZ) > travelDistZ)
+                if (std::fabs(destZ - i_z) > travelDistZ)
                     return;
             }
         }
