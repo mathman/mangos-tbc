@@ -270,7 +270,8 @@ class MANGOS_DLL_SPEC Map : public GridRefManager<NGridType>
         void PlayDirectSoundToMap(uint32 soundId, uint32 zoneId = 0) const;
 
         // Dynamic VMaps
-        float GetHeight(float x, float y, float z) const;
+        float GetWaterOrGroundLevel(float x, float y, float z, float* ground = NULL, bool swim = false) const;
+        float GetHeight(float x, float y, float z, bool checkVMap = true, float maxSearchDist = DEFAULT_HEIGHT_SEARCH) const;
         bool IsInLineOfSight(float x1, float y1, float z1, float x2, float y2, float z2) const;
         bool GetHitPosition(float srcX, float srcY, float srcZ, float& destX, float& destY, float& destZ, float modifyDist) const;
 

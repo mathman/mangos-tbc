@@ -1194,6 +1194,25 @@ void Map::CreateInstanceData(bool load)
     }
 }
 
+float Map::GetWaterOrGroundLevel(float x, float y, float z, float* ground /*= NULL*/, bool /*swim = false*/) const
+{
+    if (const_cast<Map*>(this)->getNGrid(x, y))
+    {
+        // we need ground level (including grid height version) for proper return water level in point
+        float ground_z = GetHeight(x, y, z);
+        if (ground)
+            *ground = ground_z;
+
+        GridMapLiquidData liquid_status;
+        TerrainInfo const* terrain = GetTerrain();
+        GridMapLiquidStatus res = terrain->getLiquidStatus(x, y, z, MAP_ALL_LIQUIDS, &liquid_status);
+
+        return res ? liquid_status.level : ground_z;
+    }
+
+    return VMAP_INVALID_HEIGHT_VALUE;
+}
+
 template void Map::Add(Corpse*);
 template void Map::Add(Creature*);
 template void Map::Add(GameObject*);
@@ -1974,13 +1993,46 @@ bool Map::GetHitPosition(float srcX, float srcY, float srcZ, float& destX, float
     return result0 || result1;
 }
 
-float Map::GetHeight(float x, float y, float z) const
+float Map::GetHeight(float x, float y, float z, bool checkVMap /*= true*/, float maxSearchDist /*= DEFAULT_HEIGHT_SEARCH*/) const
 {
-    float staticHeight = m_TerrainData->GetHeightStatic(x, y, z);
+    float mapHeight = VMAP_INVALID_HEIGHT_VALUE;
+    if (const_cast<Map*>(this)->getNGrid(x, y))
+    {
+        float staticHeight = m_TerrainData->GetHeightStatic(x, y, z);
 
-    // Get Dynamic Height around static Height (if valid)
-    float dynSearchHeight = 2.0f + (z < staticHeight ? staticHeight : z);
-    return std::max<float>(staticHeight, m_dyn_tree.getHeight(x, y, dynSearchHeight, dynSearchHeight - staticHeight));
+        // Get Dynamic Height around static Height (if valid)
+        float dynSearchHeight = 2.0f + (z < staticHeight ? staticHeight : z);
+        mapHeight = std::max<float>(staticHeight, m_dyn_tree.getHeight(x, y, dynSearchHeight, dynSearchHeight - staticHeight));
+    }
+
+    float vmapHeight = VMAP_INVALID_HEIGHT_VALUE;
+    if (checkVMap)
+    {
+        VMAP::IVMapManager* vmgr = VMAP::VMapFactory::createOrGetVMapManager();
+        if (vmgr->isHeightCalcEnabled())
+            vmapHeight = vmgr->getHeight(GetId(), x, y, z + 2.0f, maxSearchDist);   // look from a bit higher pos to find the floor
+    }
+
+    // mapHeight set for any above raw ground Z or <= INVALID_HEIGHT
+    // vmapheight set for any under Z value or <= INVALID_HEIGHT
+    if (vmapHeight > INVALID_HEIGHT)
+    {
+        if (mapHeight > INVALID_HEIGHT)
+        {
+            // we have mapheight and vmapheight and must select more appropriate
+
+            // we are already under the surface or vmap height above map heigt
+            // or if the distance of the vmap height is less the land height distance
+            if (z < mapHeight || vmapHeight > mapHeight || std::fabs(mapHeight - z) > std::fabs(vmapHeight - z))
+                return vmapHeight;
+            else
+                return mapHeight;                           // better use .map surface height
+        }
+        else
+            return vmapHeight;                              // we have only vmapHeight (if have)
+    }
+
+    return mapHeight;                               // explicitly use map data
 }
 
 void Map::InsertGameObjectModel(const GameObjectModel& mdl)

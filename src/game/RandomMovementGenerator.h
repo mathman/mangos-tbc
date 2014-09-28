@@ -30,8 +30,8 @@ class MANGOS_DLL_SPEC RandomMovementGenerator
 {
     public:
         explicit RandomMovementGenerator(const Creature&);
-        explicit RandomMovementGenerator(float x, float y, float z, float radius, float verticalZ = 0.0f) :
-            i_nextMoveTime(0), i_x(x), i_y(y), i_z(z), i_radius(radius), i_verticalZ(verticalZ) {}
+        explicit RandomMovementGenerator(float radius) :
+            i_nextMoveTime(0), i_radius(radius) {}
 
         void _setRandomLocation(T&);
         void Initialize(T&);
@@ -42,9 +42,7 @@ class MANGOS_DLL_SPEC RandomMovementGenerator
         MovementGeneratorType GetMovementGeneratorType() const override { return RANDOM_MOTION_TYPE; }
     private:
         ShortTimeTracker i_nextMoveTime;
-        float i_x, i_y, i_z;
         float i_radius;
-        float i_verticalZ;
 };
 
 #endif
