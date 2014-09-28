@@ -108,18 +108,18 @@ void CreatureCreatePos::SelectFinalPoint(Creature* cr)
     {
         if (m_dist == 0.0f)
         {
-            m_pos.x = m_closeObject->GetPositionX();
-            m_pos.y = m_closeObject->GetPositionY();
-            m_pos.z = m_closeObject->GetPositionZ();
+            m_pos.m_positionX = m_closeObject->GetPositionX();
+            m_pos.m_positionY = m_closeObject->GetPositionY();
+            m_pos.m_positionZ = m_closeObject->GetPositionZ();
         }
         else
-            m_closeObject->GetClosePoint(m_pos.x, m_pos.y, m_pos.z, cr->GetObjectBoundingRadius(), m_dist, m_angle);
+            m_closeObject->GetClosePoint(m_pos.m_positionX, m_pos.m_positionY, m_pos.m_positionZ, cr->GetObjectBoundingRadius(), m_dist, m_angle);
     }
 }
 
 bool CreatureCreatePos::Relocate(Creature* cr) const
 {
-    cr->Relocate(m_pos.x, m_pos.y, m_pos.z, m_pos.o);
+    cr->Relocate(m_pos.m_positionX, m_pos.m_positionY, m_pos.m_positionZ, m_pos.m_orientation);
 
     if (!cr->IsPositionValid())
     {
@@ -2261,12 +2261,12 @@ time_t Creature::GetRespawnTimeEx() const
 
 void Creature::GetRespawnCoord(float& x, float& y, float& z, float* ori, float* dist) const
 {
-    x = m_respawnPos.x;
-    y = m_respawnPos.y;
-    z = m_respawnPos.z;
+    x = m_respawnPos.m_positionX;
+    y = m_respawnPos.m_positionY;
+    z = m_respawnPos.m_positionZ;
 
     if (ori)
-        *ori = m_respawnPos.o;
+        *ori = m_respawnPos.m_orientation;
 
     if (dist)
         *dist = GetRespawnRadius();
@@ -2279,10 +2279,10 @@ void Creature::ResetRespawnCoord()
 {
     if (CreatureData const* data = sObjectMgr.GetCreatureData(GetGUIDLow()))
     {
-        m_respawnPos.x = data->posX;
-        m_respawnPos.y = data->posY;
-        m_respawnPos.z = data->posZ;
-        m_respawnPos.o = data->orientation;
+        m_respawnPos.m_positionX = data->posX;
+        m_respawnPos.m_positionY = data->posY;
+        m_respawnPos.m_positionZ = data->posZ;
+        m_respawnPos.m_orientation = data->orientation;
     }
 }
 

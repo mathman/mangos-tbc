@@ -36,8 +36,8 @@
 TransportBase::TransportBase(WorldObject* owner) :
     m_owner(owner),
     m_lastPosition(owner->GetPositionX(), owner->GetPositionY(), owner->GetPositionZ(), owner->GetOrientation()),
-    m_sinO(sin(m_lastPosition.o)),
-    m_cosO(cos(m_lastPosition.o)),
+    m_sinO(sin(m_lastPosition.m_orientation)),
+    m_cosO(cos(m_lastPosition.m_orientation)),
     m_updatePositionsTimer(500)
 {
     MANGOS_ASSERT(m_owner);
@@ -54,10 +54,10 @@ void TransportBase::Update(uint32 diff)
 {
     if (m_updatePositionsTimer < diff)
     {
-        if (fabs(m_owner->GetPositionX() - m_lastPosition.x) +
-                fabs(m_owner->GetPositionY() - m_lastPosition.y) +
-                fabs(m_owner->GetPositionZ() - m_lastPosition.z) > 1.0f ||
-                MapManager::NormalizeOrientation(m_owner->GetOrientation() - m_lastPosition.o) > 0.01f)
+        if (fabs(m_owner->GetPositionX() - m_lastPosition.m_positionX) +
+            fabs(m_owner->GetPositionY() - m_lastPosition.m_positionY) +
+            fabs(m_owner->GetPositionZ() - m_lastPosition.m_positionZ) > 1.0f ||
+                MapManager::NormalizeOrientation(m_owner->GetOrientation() - m_lastPosition.m_orientation) > 0.01f)
             UpdateGlobalPositions();
 
         m_updatePositionsTimer = 500;
@@ -73,10 +73,10 @@ void TransportBase::UpdateGlobalPositions()
                  m_owner->GetPositionZ(), m_owner->GetOrientation());
 
     // Calculate new direction multipliers
-    if (MapManager::NormalizeOrientation(pos.o - m_lastPosition.o) > 0.01f)
+    if (MapManager::NormalizeOrientation(pos.m_orientation - m_lastPosition.m_orientation) > 0.01f)
     {
-        m_sinO = sin(pos.o);
-        m_cosO = cos(pos.o);
+        m_sinO = sin(pos.m_orientation);
+        m_cosO = cos(pos.m_orientation);
     }
 
     // Update global positions
@@ -171,10 +171,10 @@ TransportInfo::TransportInfo(WorldObject* owner, TransportBase* transport, float
 
 void TransportInfo::SetLocalPosition(float lx, float ly, float lz, float lo)
 {
-    m_localPosition.x = lx;
-    m_localPosition.y = ly;
-    m_localPosition.z = lz;
-    m_localPosition.o = lo;
+    m_localPosition.m_positionX = lx;
+    m_localPosition.m_positionY = ly;
+    m_localPosition.m_positionZ = lz;
+    m_localPosition.m_orientation = lo;
 
     // Update global position
     m_transport->UpdateGlobalPositionOf(m_owner, lx, ly, lz, lo);

@@ -513,3 +513,34 @@ void MotionMaster::MoveFall()
     init.Launch();
     Mutate(new EffectMovementGenerator(0));
 }
+
+void MotionMaster::MoveCharge(float x, float y, float z, float speed /*= BASE_CHARGE_SPEED*/, uint32 id /*= EVENT_CHARGE*/, bool generatePath /*= false*/)
+{
+    if (GetCurrentMovementGeneratorType() != DISTRACT_MOTION_TYPE)
+        return;
+
+    if (m_owner->GetTypeId() == TYPEID_PLAYER)
+    {
+        DEBUG_LOG("misc", "Player (GUID: %u) charge point (X: %f Y: %f Z: %f)", m_owner->GetGUIDLow(), x, y, z);
+        Mutate(new PointMovementGenerator<Player>(id, x, y, z, generatePath, speed));
+    }
+    else
+    {
+        DEBUG_LOG("misc", "Creature (Entry: %u GUID: %u) charge point (X: %f Y: %f Z: %f)",
+            m_owner->GetEntry(), m_owner->GetGUIDLow(), x, y, z);
+        Mutate(new PointMovementGenerator<Creature>(id, x, y, z, generatePath, speed));
+    }
+}
+
+void MotionMaster::MoveCharge(PathFinder path, float speed /*= SPEED_CHARGE*/)
+{
+    G3D::Vector3 dest = path.getEndPosition();
+
+    MoveCharge(dest.x, dest.y, dest.z, speed, EVENT_CHARGE_PREPATH);
+
+    // Charge movement is not started when using EVENT_CHARGE_PREPATH
+    Movement::MoveSplineInit init(*m_owner);
+    init.MovebyPath(path.getPath());
+    init.SetVelocity(speed);
+    init.Launch();
+}

@@ -777,3 +777,41 @@ float PathFinder::dist3DSqr(const Vector3& p1, const Vector3& p2) const
 {
     return (p1 - p2).squaredLength();
 }
+
+void PathFinder::ReducePathLenghtByDist(float dist)
+{
+    if (getPathType() == PATHFIND_BLANK)
+    {
+        sLog.outError("maps", "PathGenerator::ReducePathLenghtByDist called before path was built");
+        return;
+    }
+
+    if (m_pathPoints.size() < 2) // path building failure
+        return;
+
+    uint32 i = m_pathPoints.size();
+    G3D::Vector3 nextVec = m_pathPoints[--i];
+    while (i > 0)
+    {
+        G3D::Vector3 currVec = m_pathPoints[--i];
+        G3D::Vector3 diffVec = (nextVec - currVec);
+        float len = diffVec.length();
+        if (len > dist)
+        {
+            float step = dist / len;
+            // same as nextVec
+            m_pathPoints[i + 1] -= diffVec * step;
+            m_pathPoints.resize(i + 2);
+            break;
+        }
+        else if (i == 0) // at second point
+        {
+            m_pathPoints[1] = m_pathPoints[0];
+            m_pathPoints.resize(2);
+            break;
+        }
+
+        dist -= len;
+        nextVec = currVec; // we're going backwards
+    }
+}

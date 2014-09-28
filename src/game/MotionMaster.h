@@ -25,6 +25,7 @@
 
 class MovementGenerator;
 class Unit;
+class PathFinder;
 
 // Creature Entry ID used for waypoints show, visible only for GMs
 #define VISUAL_WAYPOINT 1
@@ -57,6 +58,8 @@ enum MMCleanFlag
     MMCF_UPDATE = 1,                                        // Clear or Expire called from update
     MMCF_RESET  = 2                                         // Flag if need top()->Reset()
 };
+
+#define BASE_CHARGE_SPEED 27.0f
 
 class MANGOS_DLL_SPEC MotionMaster : private std::stack<MovementGenerator*>
 {
@@ -110,6 +113,9 @@ class MANGOS_DLL_SPEC MotionMaster : private std::stack<MovementGenerator*>
         void MoveDistract(uint32 timeLimit);
         void MoveFall();
         void MoveFlyOrLand(uint32 id, float x, float y, float z, bool liftOff);
+
+        void MoveCharge(float x, float y, float z, float speed = BASE_CHARGE_SPEED, uint32 id = EVENT_CHARGE, bool generatePath = false);
+        void MoveCharge(PathFinder path, float speed = BASE_CHARGE_SPEED);
 
         MovementGeneratorType GetCurrentMovementGeneratorType() const;
 

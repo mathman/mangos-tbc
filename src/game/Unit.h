@@ -659,27 +659,27 @@ class MovementInfo
         void SetTransportData(ObjectGuid guid, float x, float y, float z, float o, uint32 time)
         {
             t_guid = guid;
-            t_pos.x = x;
-            t_pos.y = y;
-            t_pos.z = z;
-            t_pos.o = o;
+            t_pos.m_positionX = x;
+            t_pos.m_positionY = y;
+            t_pos.m_positionZ = z;
+            t_pos.m_orientation = o;
             t_time = time;
         }
         void ClearTransportData()
         {
             t_guid = ObjectGuid();
-            t_pos.x = 0.0f;
-            t_pos.y = 0.0f;
-            t_pos.z = 0.0f;
-            t_pos.o = 0.0f;
+            t_pos.m_positionX = 0.0f;
+            t_pos.m_positionY = 0.0f;
+            t_pos.m_positionZ = 0.0f;
+            t_pos.m_orientation = 0.0f;
             t_time = 0;
         }
         ObjectGuid const& GetTransportGuid() const { return t_guid; }
         Position const* GetTransportPos() const { return &t_pos; }
         uint32 GetTransportTime() const { return t_time; }
         uint32 GetFallTime() const { return fallTime; }
-        void ChangeOrientation(float o) { pos.o = o; }
-        void ChangePosition(float x, float y, float z, float o) { pos.x = x; pos.y = y; pos.z = z; pos.o = o; }
+        void ChangeOrientation(float o) { pos.m_orientation = o; }
+        void ChangePosition(float x, float y, float z, float o) { pos.m_positionX = x; pos.m_positionY = y; pos.m_positionZ = z; pos.m_orientation = o; }
         void UpdateTime(uint32 _time) { time = _time; }
 
         struct JumpInfo
@@ -1518,6 +1518,7 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
         // if used additional args in ... part then floats must explicitly casted to double
         void SendHeartBeat();
 
+        virtual bool CanFly() const = 0;
         bool IsLevitating() const { return m_movementInfo.HasMovementFlag(MOVEFLAG_LEVITATING); }
         bool IsWalking() const { return m_movementInfo.HasMovementFlag(MOVEFLAG_WALK_MODE); }
         bool IsRooted() const { return m_movementInfo.HasMovementFlag(MOVEFLAG_ROOT); }
@@ -1953,6 +1954,13 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
         PetAuraSet m_petAuras;
         void AddPetAura(PetAura const* petSpell);
         void RemovePetAura(PetAura const* petSpell);
+
+        // Transports
+        float GetTransOffsetX() const { return m_movementInfo.GetTransportPos()->m_positionX; }
+        float GetTransOffsetY() const { return m_movementInfo.GetTransportPos()->m_positionY; }
+        float GetTransOffsetZ() const { return m_movementInfo.GetTransportPos()->m_positionZ; }
+        float GetTransOffsetO() const { return m_movementInfo.GetTransportPos()->m_orientation; }
+        uint32 GetTransTime() const { return m_movementInfo.GetTransportTime(); }
 
         // Movement info
         MovementInfo m_movementInfo;

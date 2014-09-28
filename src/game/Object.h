@@ -74,22 +74,165 @@ typedef UNORDERED_MAP<Player*, UpdateData> UpdateDataMapType;
 
 struct Position
 {
-    Position() : x(0.0f), y(0.0f), z(0.0f), o(0.0f) {}
-    Position(float _x, float _y, float _z, float _o) : x(_x), y(_y), z(_z), o(_o) {}
-    float x, y, z, o;
+    Position() : m_positionX(0.0f), m_positionY(0.0f), m_positionZ(0.0f), m_orientation(0.0f) {}
+    Position(float _x, float _y, float _z, float _o) : m_positionX(_x), m_positionY(_y), m_positionZ(_z), m_orientation(_o) {}
+    Position(const Position &loc) { Relocate(loc); }
+
+    float m_positionX;
+    float m_positionY;
+    float m_positionZ;
+    float m_orientation;
+
+    void Relocate(float x, float y)
+    {
+        m_positionX = x; m_positionY = y;
+    }
+    void Relocate(float x, float y, float z)
+    {
+        m_positionX = x; m_positionY = y; m_positionZ = z;
+    }
+    void Relocate(float x, float y, float z, float orientation)
+    {
+        m_positionX = x; m_positionY = y; m_positionZ = z; SetOrientation(orientation);
+    }
+    void Relocate(Position const &pos)
+    {
+        m_positionX = pos.m_positionX; m_positionY = pos.m_positionY; m_positionZ = pos.m_positionZ; SetOrientation(pos.m_orientation);
+    }
+    void Relocate(Position const* pos)
+    {
+        m_positionX = pos->m_positionX; m_positionY = pos->m_positionY; m_positionZ = pos->m_positionZ; SetOrientation(pos->m_orientation);
+    }
+    void SetOrientation(float orientation)
+    {
+        m_orientation = NormalizeOrientation(orientation);
+    }
+
+    float GetPositionX() const { return m_positionX; }
+    float GetPositionY() const { return m_positionY; }
+    float GetPositionZ() const { return m_positionZ; }
+    float GetOrientation() const { return m_orientation; }
+
+    void GetPosition(float &x, float &y) const
+    {
+        x = m_positionX; y = m_positionY;
+    }
+    void GetPosition(float &x, float &y, float &z) const
+    {
+        x = m_positionX; y = m_positionY; z = m_positionZ;
+    }
+    void GetPosition(float &x, float &y, float &z, float &o) const
+    {
+        x = m_positionX; y = m_positionY; z = m_positionZ; o = m_orientation;
+    }
+
+    Position GetPosition() const
+    {
+        return *this;
+    }
+
+    bool IsPositionValid() const;
+
+    float GetExactDist2dSq(float x, float y) const
+    {
+        float dx = m_positionX - x; float dy = m_positionY - y; return dx*dx + dy*dy;
+    }
+    float GetExactDist2d(const float x, const float y) const
+    {
+        return std::sqrt(GetExactDist2dSq(x, y));
+    }
+    float GetExactDist2dSq(Position const* pos) const
+    {
+        float dx = m_positionX - pos->m_positionX; float dy = m_positionY - pos->m_positionY; return dx*dx + dy*dy;
+    }
+    float GetExactDist2d(Position const* pos) const
+    {
+        return std::sqrt(GetExactDist2dSq(pos));
+    }
+    float GetExactDistSq(float x, float y, float z) const
+    {
+        float dz = m_positionZ - z; return GetExactDist2dSq(x, y) + dz*dz;
+    }
+    float GetExactDist(float x, float y, float z) const
+    {
+        return std::sqrt(GetExactDistSq(x, y, z));
+    }
+    float GetExactDistSq(Position const* pos) const
+    {
+        float dx = m_positionX - pos->m_positionX; float dy = m_positionY - pos->m_positionY; float dz = m_positionZ - pos->m_positionZ; return dx*dx + dy*dy + dz*dz;
+    }
+    float GetExactDist(Position const* pos) const
+    {
+        return std::sqrt(GetExactDistSq(pos));
+    }
+
+    float GetAngle(Position const* pos) const;
+    float GetAngle(float x, float y) const;
+    float GetRelativeAngle(Position const* pos) const
+    {
+        return GetAngle(pos) - m_orientation;
+    }
+    float GetRelativeAngle(float x, float y) const { return GetAngle(x, y) - m_orientation; }
+    void GetSinCos(float x, float y, float &vsin, float &vcos) const;
+
+    bool IsInDist2d(float x, float y, float dist) const
+    {
+        return GetExactDist2dSq(x, y) < dist * dist;
+    }
+    bool IsInDist2d(Position const* pos, float dist) const
+    {
+        return GetExactDist2dSq(pos) < dist * dist;
+    }
+    bool IsInDist(float x, float y, float z, float dist) const
+    {
+        return GetExactDistSq(x, y, z) < dist * dist;
+    }
+    bool IsInDist(Position const* pos, float dist) const
+    {
+        return GetExactDistSq(pos) < dist * dist;
+    }
+    bool HasInArc(float arcangle, Position const* pos, float border = 2.0f) const;
+    bool HasInLine(WorldObject const* target, float width) const;
+    std::string ToString() const;
+
+    // modulos a radian orientation to the range of 0..2PI
+    static float NormalizeOrientation(float o)
+    {
+        // fmod only supports positive numbers. Thus we have
+        // to emulate negative numbers
+        if (o < 0)
+        {
+            float mod = o *-1;
+            mod = std::fmod(mod, 2.0f * static_cast<float>(M_PI));
+            mod = -mod + 2.0f * static_cast<float>(M_PI);
+            return mod;
+        }
+        return std::fmod(o, 2.0f * static_cast<float>(M_PI));
+    }
 };
 
-struct WorldLocation
+#define MAPID_INVALID 0xFFFFFFFF
+
+class WorldLocation : public Position
 {
-    uint32 mapid;
-    float coord_x;
-    float coord_y;
-    float coord_z;
-    float orientation;
-    explicit WorldLocation(uint32 _mapid = 0, float _x = 0, float _y = 0, float _z = 0, float _o = 0)
-        : mapid(_mapid), coord_x(_x), coord_y(_y), coord_z(_z), orientation(_o) {}
-    WorldLocation(WorldLocation const& loc)
-        : mapid(loc.mapid), coord_x(loc.coord_x), coord_y(loc.coord_y), coord_z(loc.coord_z), orientation(loc.orientation) {}
+    public:
+        explicit WorldLocation(uint32 _mapid = 0, float _x = 0, float _y = 0, float _z = 0, float _o = 0)
+            : m_mapId(_mapid) { Relocate(_x, _y, _z, _o); }
+        WorldLocation(const WorldLocation &loc) : Position(loc) { WorldRelocate(loc); }
+
+        void WorldRelocate(const WorldLocation &loc)
+        {
+            m_mapId = loc.GetMapId(); Relocate(loc);
+        }
+
+        WorldLocation GetWorldLocation() const
+        {
+            return *this;
+        }
+
+        uint32 GetMapId() const { return m_mapId; }
+
+        uint32 m_mapId;
 };
 
 
@@ -355,6 +498,15 @@ class MANGOS_DLL_SPEC Object
         virtual bool HasQuest(uint32 /* quest_id */) const { return false; }
         virtual bool HasInvolvedQuest(uint32 /* quest_id */) const { return false; }
 
+        Player* ToPlayer() { if (GetTypeId() == TYPEID_PLAYER) return reinterpret_cast<Player*>(this); else return NULL; }
+        Player const* ToPlayer() const { if (GetTypeId() == TYPEID_PLAYER) return reinterpret_cast<Player const*>(this); else return NULL; }
+
+        Creature* ToCreature() { if (GetTypeId() == TYPEID_UNIT) return reinterpret_cast<Creature*>(this); else return NULL; }
+        Creature const* ToCreature() const { if (GetTypeId() == TYPEID_UNIT) return reinterpret_cast<Creature const*>(this); else return NULL; }
+
+        Unit* ToUnit() { if (isType(TYPEMASK_UNIT)) return reinterpret_cast<Unit*>(this); else return NULL; }
+        Unit const* ToUnit() const { if (isType(TYPEMASK_UNIT)) return reinterpret_cast<Unit const*>(this); else return NULL; }
+
     protected:
         Object();
 
@@ -403,7 +555,7 @@ class MANGOS_DLL_SPEC Object
 
 struct WorldObjectChangeAccumulator;
 
-class MANGOS_DLL_SPEC WorldObject : public Object
+class MANGOS_DLL_SPEC WorldObject : public Object, public WorldLocation
 {
         friend struct WorldObjectChangeAccumulator;
 
@@ -440,20 +592,6 @@ class MANGOS_DLL_SPEC WorldObject : public Object
         bool IsBoarded() const { return m_transportInfo != NULL; }
         void SetTransportInfo(TransportInfo* transportInfo) { m_transportInfo = transportInfo; }
 
-        void Relocate(float x, float y, float z, float orientation);
-        void Relocate(float x, float y, float z);
-
-        void SetOrientation(float orientation);
-
-        float GetPositionX() const { return m_position.x; }
-        float GetPositionY() const { return m_position.y; }
-        float GetPositionZ() const { return m_position.z; }
-        void GetPosition(float& x, float& y, float& z) const
-        { x = m_position.x; y = m_position.y; z = m_position.z; }
-        void GetPosition(WorldLocation& loc) const
-        { loc.mapid = m_mapId; GetPosition(loc.coord_x, loc.coord_y, loc.coord_z); loc.orientation = GetOrientation(); }
-        float GetOrientation() const { return m_position.o; }
-
         /// Gives a 2d-point in distance distance2d in direction absAngle around the current position (point-to-point)
         void GetNearPoint2D(float& x, float& y, float distance2d, float absAngle) const;
         /** Gives a "free" spot for searcher in distance distance2d in direction absAngle on "good" height
@@ -486,16 +624,17 @@ class MANGOS_DLL_SPEC WorldObject : public Object
             // angle to face `obj` to `this` using distance includes size of `obj`
             GetNearPoint(obj, x, y, z, obj->GetObjectBoundingRadius(), distance2d + GetObjectBoundingRadius() + obj->GetObjectBoundingRadius(), GetAngle(obj));
         }
+        void MovePositionToFirstCollision(Position &pos, float dist, float angle);
+        Position GetFirstCollisionPosition(float dist, float angle);
 
         virtual float GetObjectBoundingRadius() const { return DEFAULT_WORLD_OBJECT_SIZE; }
 
-        bool IsPositionValid() const;
+        float GetObjectSize() const;
         void UpdateGroundPositionZ(float x, float y, float& z) const;
         void UpdateAllowedPositionZ(float x, float y, float& z) const;
 
         void GetRandomPoint(float x, float y, float z, float distance, float& rand_x, float& rand_y, float& rand_z) const;
 
-        uint32 GetMapId() const { return m_mapId; }
         uint32 GetInstanceId() const { return m_InstanceId; }
 
         uint32 GetZoneId() const;
@@ -510,6 +649,7 @@ class MANGOS_DLL_SPEC WorldObject : public Object
         virtual const char* GetNameForLocaleIdx(int32 /*locale_idx*/) const { return GetName(); }
 
         float GetDistance(const WorldObject* obj) const;
+        float GetDistance(Position const &pos) const;
         float GetDistance(float x, float y, float z) const;
         float GetDistance2d(const WorldObject* obj) const;
         float GetDistance2d(float x, float y) const;
@@ -539,9 +679,6 @@ class MANGOS_DLL_SPEC WorldObject : public Object
         bool IsInRange2d(float x, float y, float minRange, float maxRange) const;
         bool IsInRange3d(float x, float y, float z, float minRange, float maxRange) const;
 
-        float GetAngle(const WorldObject* obj) const;
-        float GetAngle(const float x, const float y) const;
-        bool HasInArc(const float arcangle, const WorldObject* obj) const;
         bool isInFrontInMap(WorldObject const* target, float distance, float arc = M_PI) const;
         bool isInBackInMap(WorldObject const* target, float distance, float arc = M_PI) const;
         bool isInFront(WorldObject const* target, float distance, float arc = M_PI) const;
@@ -623,10 +760,8 @@ class MANGOS_DLL_SPEC WorldObject : public Object
     private:
         Map* m_currMap;                                     // current object's Map location
 
-        uint32 m_mapId;                                     // object at map with map_id
         uint32 m_InstanceId;                                // in map copy with instance id
 
-        Position m_position;
         ViewPoint m_viewPoint;
         WorldUpdateCounter m_updateTracker;
         bool m_isActiveObject;

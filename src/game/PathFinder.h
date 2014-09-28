@@ -74,6 +74,8 @@ class PathFinder
         PointsArray& getPath() { return m_pathPoints; }
         PathType getPathType() const { return m_type; }
 
+        void ReducePathLenghtByDist(float dist); // path must be already built
+
     private:
 
         dtPolyRef      m_pathPolyRefs[MAX_PATH_LENGTH];   // array of detour polygon references

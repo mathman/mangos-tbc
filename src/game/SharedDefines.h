@@ -2339,6 +2339,16 @@ enum DiminishingGroup
     DIMINISHING_LIMITONLY
 };
 
+enum EventId
+{
+    EVENT_CHARGE = 1003,
+
+    /// Special charge event which is used for charge spells that have explicit targets
+    /// and had a path already generated - using it in PointMovementGenerator will not
+    /// create a new spline and launch it
+    EVENT_CHARGE_PREPATH = 1004
+};
+
 enum InstanceResetMethod
 {
     INSTANCE_RESET_ALL,

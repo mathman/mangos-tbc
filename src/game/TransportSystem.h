@@ -99,16 +99,16 @@ class TransportInfo
         ObjectGuid GetTransportGuid() const { return m_transport->GetOwner()->GetObjectGuid(); }
 
         // Get local position
-        float GetLocalOrientation() const { return m_localPosition.o; }
-        float GetLocalPositionX() const { return m_localPosition.x; }
-        float GetLocalPositionY() const { return m_localPosition.y; }
-        float GetLocalPositionZ() const { return m_localPosition.z; }
+        float GetLocalOrientation() const { return m_localPosition.m_orientation; }
+        float GetLocalPositionX() const { return m_localPosition.m_positionX; }
+        float GetLocalPositionY() const { return m_localPosition.m_positionY; }
+        float GetLocalPositionZ() const { return m_localPosition.m_positionZ; }
         void GetLocalPosition(float& lx, float& ly, float& lz, float& lo) const
         {
-            lx = m_localPosition.x;
-            ly = m_localPosition.y;
-            lz = m_localPosition.z;
-            lo = m_localPosition.o;
+            lx = m_localPosition.m_positionX;
+            ly = m_localPosition.m_positionY;
+            lz = m_localPosition.m_positionZ;
+            lo = m_localPosition.m_orientation;
         }
 
     private:

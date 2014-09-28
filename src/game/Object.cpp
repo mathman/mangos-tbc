@@ -871,9 +871,25 @@ void Object::MarkForClientUpdate()
     }
 }
 
+bool Position::HasInLine(WorldObject const* target, float width) const
+{
+    if (!HasInArc(float(M_PI), target))
+        return false;
+    width += target->GetObjectSize();
+    float angle = GetRelativeAngle(target);
+    return std::fabs(std::sin(angle)) * GetExactDist2d(target->GetPositionX(), target->GetPositionY()) < width;
+}
+
+std::string Position::ToString() const
+{
+    std::stringstream sstr;
+    sstr << "X: " << m_positionX << " Y: " << m_positionY << " Z: " << m_positionZ << " O: " << m_orientation;
+    return sstr.str();
+}
+
 WorldObject::WorldObject() :
     m_transportInfo(NULL), m_currMap(NULL),
-    m_mapId(0), m_InstanceId(0),
+    m_InstanceId(0),
     m_isActiveObject(false)
 {
 }
@@ -888,48 +904,19 @@ void WorldObject::_Create(uint32 guidlow, HighGuid guidhigh)
     Object::_Create(guidlow, 0, guidhigh);
 }
 
-void WorldObject::Relocate(float x, float y, float z, float orientation)
-{
-    m_position.x = x;
-    m_position.y = y;
-    m_position.z = z;
-    m_position.o = orientation;
-
-    if (isType(TYPEMASK_UNIT))
-        ((Unit*)this)->m_movementInfo.ChangePosition(x, y, z, orientation);
-}
-
-void WorldObject::Relocate(float x, float y, float z)
-{
-    m_position.x = x;
-    m_position.y = y;
-    m_position.z = z;
-
-    if (isType(TYPEMASK_UNIT))
-        ((Unit*)this)->m_movementInfo.ChangePosition(x, y, z, GetOrientation());
-}
-
-void WorldObject::SetOrientation(float orientation)
-{
-    m_position.o = orientation;
-
-    if (isType(TYPEMASK_UNIT))
-        ((Unit*)this)->m_movementInfo.ChangeOrientation(orientation);
-}
-
 uint32 WorldObject::GetZoneId() const
 {
-    return GetTerrain()->GetZoneId(m_position.x, m_position.y, m_position.z);
+    return GetTerrain()->GetZoneId(m_positionX, m_positionY, m_positionZ);
 }
 
 uint32 WorldObject::GetAreaId() const
 {
-    return GetTerrain()->GetAreaId(m_position.x, m_position.y, m_position.z);
+    return GetTerrain()->GetAreaId(m_positionX, m_positionY, m_positionZ);
 }
 
 void WorldObject::GetZoneAndAreaId(uint32& zoneid, uint32& areaid) const
 {
-    GetTerrain()->GetZoneAndAreaId(zoneid, areaid, m_position.x, m_position.y, m_position.z);
+    GetTerrain()->GetZoneAndAreaId(zoneid, areaid, m_positionX, m_positionY, m_positionZ);
 }
 
 InstanceData* WorldObject::GetInstanceData() const
@@ -940,40 +927,32 @@ InstanceData* WorldObject::GetInstanceData() const
 // slow
 float WorldObject::GetDistance(const WorldObject* obj) const
 {
-    float dx = GetPositionX() - obj->GetPositionX();
-    float dy = GetPositionY() - obj->GetPositionY();
-    float dz = GetPositionZ() - obj->GetPositionZ();
-    float sizefactor = GetObjectBoundingRadius() + obj->GetObjectBoundingRadius();
-    float dist = sqrt((dx * dx) + (dy * dy) + (dz * dz)) - sizefactor;
-    return (dist > 0 ? dist : 0);
+    float d = GetExactDist(obj) - GetObjectSize() - obj->GetObjectSize();
+    return d > 0.0f ? d : 0.0f;
+}
+
+float WorldObject::GetDistance(const Position &pos) const
+{
+    float d = GetExactDist(&pos) - GetObjectSize();
+    return d > 0.0f ? d : 0.0f;
 }
 
 float WorldObject::GetDistance2d(float x, float y) const
 {
-    float dx = GetPositionX() - x;
-    float dy = GetPositionY() - y;
-    float sizefactor = GetObjectBoundingRadius();
-    float dist = sqrt((dx * dx) + (dy * dy)) - sizefactor;
-    return (dist > 0 ? dist : 0);
+    float d = GetExactDist2d(x, y) - GetObjectSize();
+    return d > 0.0f ? d : 0.0f;
 }
 
 float WorldObject::GetDistance(float x, float y, float z) const
 {
-    float dx = GetPositionX() - x;
-    float dy = GetPositionY() - y;
-    float dz = GetPositionZ() - z;
-    float sizefactor = GetObjectBoundingRadius();
-    float dist = sqrt((dx * dx) + (dy * dy) + (dz * dz)) - sizefactor;
-    return (dist > 0 ? dist : 0);
+    float d = GetExactDist(x, y, z) - GetObjectSize();
+    return d > 0.0f ? d : 0.0f;
 }
 
 float WorldObject::GetDistance2d(const WorldObject* obj) const
 {
-    float dx = GetPositionX() - obj->GetPositionX();
-    float dy = GetPositionY() - obj->GetPositionY();
-    float sizefactor = GetObjectBoundingRadius() + obj->GetObjectBoundingRadius();
-    float dist = sqrt((dx * dx) + (dy * dy)) - sizefactor;
-    return (dist > 0 ? dist : 0);
+    float d = GetExactDist2d(obj) - GetObjectSize() - obj->GetObjectSize();
+    return d > 0.0f ? d : 0.0f;
 }
 
 float WorldObject::GetDistanceZ(const WorldObject* obj) const
@@ -1129,53 +1108,63 @@ bool WorldObject::IsInRange3d(float x, float y, float z, float minRange, float m
     return distsq < maxdist * maxdist;
 }
 
-float WorldObject::GetAngle(const WorldObject* obj) const
+float Position::GetAngle(const Position* obj) const
 {
     if (!obj)
-        return 0.0f;
+        return 0;
 
-    // Rework the assert, when more cases where such a call can happen have been fixed
-    // MANGOS_ASSERT(obj != this || PrintEntryError("GetAngle (for self)"));
-    if (obj == this)
-    {
-        sLog.outError("INVALID CALL for GetAngle for %s", obj->GetGuidStr().c_str());
-        return 0.0f;
-    }
     return GetAngle(obj->GetPositionX(), obj->GetPositionY());
 }
 
 // Return angle in range 0..2*pi
-float WorldObject::GetAngle(const float x, const float y) const
+float Position::GetAngle(const float x, const float y) const
 {
     float dx = x - GetPositionX();
     float dy = y - GetPositionY();
 
-    float ang = atan2(dy, dx);                              // returns value between -Pi..Pi
-    ang = (ang >= 0) ? ang : 2 * M_PI_F + ang;
+    float ang = std::atan2(dy, dx);
+    ang = (ang >= 0) ? ang : 2 * float(M_PI) + ang;
     return ang;
 }
 
-bool WorldObject::HasInArc(const float arcangle, const WorldObject* obj) const
+void Position::GetSinCos(const float x, const float y, float &vsin, float &vcos) const
+{
+    float dx = GetPositionX() - x;
+    float dy = GetPositionY() - y;
+
+    if (std::fabs(dx) < 0.001f && std::fabs(dy) < 0.001f)
+    {
+        float angle = (float)rand_norm()*static_cast<float>(2 * M_PI);
+        vcos = std::cos(angle);
+        vsin = std::sin(angle);
+    }
+    else
+    {
+        float dist = std::sqrt((dx*dx) + (dy*dy));
+        vcos = dx / dist;
+        vsin = dy / dist;
+    }
+}
+
+bool Position::HasInArc(float arc, const Position* obj, float border) const
 {
     // always have self in arc
     if (obj == this)
         return true;
 
-    float arc = arcangle;
-
     // move arc to range 0.. 2*pi
-    arc = MapManager::NormalizeOrientation(arc);
+    arc = NormalizeOrientation(arc);
 
     float angle = GetAngle(obj);
-    angle -= m_position.o;
+    angle -= m_orientation;
 
     // move angle to range -pi ... +pi
-    angle = MapManager::NormalizeOrientation(angle);
-    if (angle > M_PI_F)
-        angle -= 2.0f * M_PI_F;
+    angle = NormalizeOrientation(angle);
+    if (angle > float(M_PI))
+        angle -= 2.0f * float(M_PI);
 
-    float lborder =  -1 * (arc / 2.0f);                     // in range -pi..0
-    float rborder = (arc / 2.0f);                           // in range 0..pi
+    float lborder = -1 * (arc / border);                        // in range -pi..0
+    float rborder = (arc / border);                             // in range 0..pi
     return ((angle >= lborder) && (angle <= rborder));
 }
 
@@ -1293,9 +1282,9 @@ void WorldObject::UpdateAllowedPositionZ(float x, float y, float& z) const
     }
 }
 
-bool WorldObject::IsPositionValid() const
+bool Position::IsPositionValid() const
 {
-    return MaNGOS::IsValidMapCoord(m_position.x, m_position.y, m_position.z, m_position.o);
+    return MaNGOS::IsValidMapCoord(m_positionX, m_positionY, m_positionZ, m_orientation);
 }
 
 void WorldObject::MonsterSay(const char* text, uint32 /*language*/, Unit const* target) const
@@ -1724,6 +1713,109 @@ void WorldObject::GetNearPoint(WorldObject const* searcher, float& x, float& y, 
         searcher->UpdateAllowedPositionZ(x, y, z);          // update to LOS height if available
     else
         UpdateGroundPositionZ(x, y, z);
+}
+
+float WorldObject::GetObjectSize() const
+{
+    return (m_valuesCount > UNIT_FIELD_COMBATREACH) ? m_floatValues[UNIT_FIELD_COMBATREACH] : DEFAULT_WORLD_OBJECT_SIZE;
+}
+
+Position WorldObject::GetFirstCollisionPosition(float dist, float angle)
+{
+    Position pos = GetPosition();
+    MovePositionToFirstCollision(pos, dist, angle);
+    return pos;
+}
+
+float NormalizeZforCollision(WorldObject* obj, float x, float y, float z)
+{
+    float ground = obj->GetMap()->GetHeight(x, y, MAX_HEIGHT);
+    float floor = obj->GetMap()->GetHeight(x, y, z + 2.0f);
+    float helper = std::fabs(ground - z) <= std::fabs(floor - z) ? ground : floor;
+    if (z > helper) // must be above ground
+    {
+        if (Unit* unit = obj->ToUnit())
+        {
+            if (unit->CanFly())
+                return z;
+        }
+
+        GridMapLiquidData liquid_status;
+        TerrainInfo const* terrain = obj->GetTerrain();
+        GridMapLiquidStatus res = terrain->getLiquidStatus(obj->GetPositionX(), obj->GetPositionY(), obj->GetPositionZ(), MAP_ALL_LIQUIDS, &liquid_status);
+        if (res && liquid_status.level > helper) // water must be above ground
+        {
+            if (liquid_status.level > z) // z is underwater
+                return z;
+            else
+                return std::fabs(liquid_status.level - z) <= std::fabs(helper - z) ? liquid_status.level : helper;
+        }
+    }
+    return helper;
+}
+
+void WorldObject::MovePositionToFirstCollision(Position &pos, float dist, float angle)
+{
+    angle += m_orientation;
+    float destx, desty, destz;
+
+    destx = pos.m_positionX + dist * cos(angle);
+    desty = pos.m_positionY + dist * sin(angle);
+
+    // Prevent invalid coordinates here, position is unchanged
+    if (!MaNGOS::IsValidMapCoord(destx, desty))
+    {
+        DEBUG_LOG("misc", "WorldObject::MovePositionToFirstCollision invalid coordinates X: %f and Y: %f were passed!", destx, desty);
+        return;
+    }
+
+    destz = NormalizeZforCollision(this, destx, desty, pos.GetPositionZ());
+    bool col = VMAP::VMapFactory::createOrGetVMapManager()->getObjectHitPos(GetMapId(), pos.m_positionX, pos.m_positionY, pos.m_positionZ + 0.5f, destx, desty, destz + 0.5f, destx, desty, destz, -0.5f);
+
+    // collision occured
+    if (col)
+    {
+        // move back a bit
+        destx -= CONTACT_DISTANCE * cos(angle);
+        desty -= CONTACT_DISTANCE * sin(angle);
+        dist = sqrt((pos.m_positionX - destx)*(pos.m_positionX - destx) + (pos.m_positionY - desty)*(pos.m_positionY - desty));
+    }
+
+    // check dynamic collision
+    col = GetMap()->GetHitPosition(pos.m_positionX, pos.m_positionY, pos.m_positionZ, destx, desty, destz, -0.5f);
+
+    // Collided with a gameobject
+    if (col)
+    {
+        destx -= CONTACT_DISTANCE * std::cos(angle);
+        desty -= CONTACT_DISTANCE * std::sin(angle);
+        dist = std::sqrt((pos.m_positionX - destx)*(pos.m_positionX - destx) + (pos.m_positionY - desty)*(pos.m_positionY - desty));
+    }
+
+    float step = dist / 10.0f;
+
+    int j = 0;
+    for (j; j < 10; j++)
+    {
+        // do not allow too big z changes
+        if (fabs(pos.m_positionZ - destz) > 6)
+        {
+            destx -= step * cos(angle);
+            desty -= step * sin(angle);
+            destz = NormalizeZforCollision(this, destx, desty, pos.GetPositionZ());
+        }
+        // we have correct destz now
+        else
+        {
+            pos.Relocate(destx, desty, destz);
+            break;
+        }
+    }
+
+    MaNGOS::NormalizeMapCoord(pos.m_positionX);
+    MaNGOS::NormalizeMapCoord(pos.m_positionY);
+    pos.m_positionZ = NormalizeZforCollision(this, destx, desty, pos.GetPositionZ());
+    pos.SetOrientation(GetOrientation());
 }
 
 void WorldObject::PlayDistanceSound(uint32 sound_id, Player const* target /*= NULL*/) const

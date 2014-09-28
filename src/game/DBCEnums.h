@@ -192,6 +192,8 @@ enum SpellCastTargetFlags
     TARGET_FLAG_UNK1            = 0x00004000,               // 199 spells, opening object/lock
     TARGET_FLAG_CORPSE          = 0x00008000,               // pguid, resurrection spells
     TARGET_FLAG_UNK2            = 0x00010000,               // pguid, not used in any spells as of 2.4.3 (can be set dynamically)
+    TARGET_FLAG_UNIT_MASK = TARGET_FLAG_UNIT
+    | TARGET_FLAG_UNIT_UNK | TARGET_FLAG_UNIT_CORPSE,
 };
 
 enum SpellEffectIndex

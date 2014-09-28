@@ -75,18 +75,18 @@ void MovementInfo::Read(ByteBuffer& data)
     data >> moveFlags;
     data >> moveFlags2;
     data >> time;
-    data >> pos.x;
-    data >> pos.y;
-    data >> pos.z;
-    data >> pos.o;
+    data >> pos.m_positionX;
+    data >> pos.m_positionY;
+    data >> pos.m_positionZ;
+    data >> pos.m_orientation;
 
     if (HasMovementFlag(MOVEFLAG_ONTRANSPORT))
     {
         data >> t_guid;
-        data >> t_pos.x;
-        data >> t_pos.y;
-        data >> t_pos.z;
-        data >> t_pos.o;
+        data >> t_pos.m_positionX;
+        data >> t_pos.m_positionY;
+        data >> t_pos.m_positionZ;
+        data >> t_pos.m_orientation;
         data >> t_time;
     }
 
@@ -116,18 +116,18 @@ void MovementInfo::Write(ByteBuffer& data) const
     data << moveFlags;
     data << moveFlags2;
     data << time;
-    data << pos.x;
-    data << pos.y;
-    data << pos.z;
-    data << pos.o;
+    data << pos.m_positionX;
+    data << pos.m_positionY;
+    data << pos.m_positionZ;
+    data << pos.m_orientation;
 
     if (HasMovementFlag(MOVEFLAG_ONTRANSPORT))
     {
         data << t_guid;
-        data << t_pos.x;
-        data << t_pos.y;
-        data << t_pos.z;
-        data << t_pos.o;
+        data << t_pos.m_positionX;
+        data << t_pos.m_positionY;
+        data << t_pos.m_positionZ;
+        data << t_pos.m_orientation;
         data << t_time;
     }
 
@@ -9780,15 +9780,15 @@ void Unit::ScheduleAINotify(uint32 delay)
 void Unit::OnRelocated()
 {
     // switch to use G3D::Vector3 is good idea, maybe
-    float dx = m_last_notified_position.x - GetPositionX();
-    float dy = m_last_notified_position.y - GetPositionY();
-    float dz = m_last_notified_position.z - GetPositionZ();
+    float dx = m_last_notified_position.m_positionX - GetPositionX();
+    float dy = m_last_notified_position.m_positionY - GetPositionY();
+    float dz = m_last_notified_position.m_positionZ - GetPositionZ();
     float distsq = dx * dx + dy * dy + dz * dz;
     if (distsq > World::GetRelocationLowerLimitSq())
     {
-        m_last_notified_position.x = GetPositionX();
-        m_last_notified_position.y = GetPositionY();
-        m_last_notified_position.z = GetPositionZ();
+        m_last_notified_position.m_positionX = GetPositionX();
+        m_last_notified_position.m_positionY = GetPositionY();
+        m_last_notified_position.m_positionZ = GetPositionZ();
 
         GetViewPoint().Call_UpdateVisibilityForOwner();
         UpdateObjectVisibility();

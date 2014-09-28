@@ -27,6 +27,7 @@
 #include "LootMgr.h"
 #include "Unit.h"
 #include "Player.h"
+#include "PathFinder.h"
 
 class WorldSession;
 class WorldPacket;
@@ -123,6 +124,7 @@ class SpellCastTargets
         Unit* getUnitTarget() const { return m_unitTarget; }
 
         void setDestination(float x, float y, float z);
+        void setDestination(Position pos);
         void setSource(float x, float y, float z);
         void getDestination(float& x, float& y, float& z) const { x = m_destX; y = m_destY; z = m_destZ; }
         void getSource(float& x, float& y, float& z) const { x = m_srcX; y = m_srcY, z = m_srcZ; }
@@ -606,6 +608,8 @@ class Spell
         // we can't store original aura link to prevent access to deleted auras
         // and in same time need aura data and after aura deleting.
         SpellEntry const* m_triggeredByAuraSpell;
+
+        PathFinder m_preGeneratedPath;
 };
 
 enum ReplenishType

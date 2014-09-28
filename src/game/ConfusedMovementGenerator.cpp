@@ -83,15 +83,15 @@ bool ConfusedMovementGenerator<T>::Update(T& unit, const uint32& diff)
             // start moving
             unit.addUnitState(UNIT_STAT_CONFUSED_MOVE);
 
-            float x = i_x + 10.0f * (rand_norm_f() - 0.5f);
-            float y = i_y + 10.0f * (rand_norm_f() - 0.5f);
-            float z = i_z;
+            float dest = 4.0f * (float)rand_norm() - 2.0f;
 
-            unit.UpdateAllowedPositionZ(x, y, z);
+            Position pos;
+            pos.Relocate(i_x, i_y, i_z);
+            unit.MovePositionToFirstCollision(pos, dest, 0.0f);
 
             PathFinder path(&unit);
             path.setPathLengthLimit(30.0f);
-            path.calculate(x, y, z);
+            path.calculate(pos.m_positionX, pos.m_positionY, pos.m_positionZ);
             if (path.getPathType() & PATHFIND_NOPATH)
             {
                 i_nextMoveTime.Reset(urand(800, 1000));

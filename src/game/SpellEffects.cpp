@@ -6529,16 +6529,19 @@ void Spell::EffectCharge(SpellEffectIndex /*eff_idx*/)
     if (!unitTarget)
         return;
 
-    // TODO: research more ContactPoint/attack distance.
-    // 3.666666 instead of ATTACK_DISTANCE(5.0f) in below seem to give more accurate result.
-    float x, y, z;
-    unitTarget->GetContactPoint(m_caster, x, y, z, 3.666666f);
-
     if (unitTarget->GetTypeId() != TYPEID_PLAYER)
         ((Creature*)unitTarget)->StopMoving();
 
-    // Only send MOVEMENTFLAG_WALK_MODE, client has strange issues with other move flags
-    m_caster->MonsterMoveWithSpeed(x, y, z, 24.f, true, true);
+    float speed = m_spellInfo->speed ? m_spellInfo->speed : BASE_CHARGE_SPEED;
+    // Spell is not using explicit target - no generated path
+    if (m_preGeneratedPath.getPathType() == PATHFIND_BLANK)
+    {
+        //unitTarget->GetContactPoint(m_caster, pos.m_positionX, pos.m_positionY, pos.m_positionZ);
+        Position pos = unitTarget->GetFirstCollisionPosition(unitTarget->GetObjectSize(), unitTarget->GetRelativeAngle(m_caster));
+        m_caster->GetMotionMaster()->MoveCharge(pos.m_positionX, pos.m_positionY, pos.m_positionZ, speed);
+    }
+    else
+        m_caster->GetMotionMaster()->MoveCharge(m_preGeneratedPath, speed);
 
     // not all charge effects used in negative spells
     if (unitTarget != m_caster && !IsPositiveSpell(m_spellInfo->Id))
@@ -6547,21 +6550,20 @@ void Spell::EffectCharge(SpellEffectIndex /*eff_idx*/)
 
 void Spell::EffectCharge2(SpellEffectIndex /*eff_idx*/)
 {
-    float x, y, z;
     if (m_targets.m_targetMask & TARGET_FLAG_DEST_LOCATION)
     {
-        m_targets.getDestination(x, y, z);
+        Position pos;
+        m_targets.getDestination(pos.m_positionX, pos.m_positionY, pos.m_positionZ);
 
         if (unitTarget->GetTypeId() != TYPEID_PLAYER)
             ((Creature*)unitTarget)->StopMoving();
-    }
-    else if (unitTarget && unitTarget != m_caster)
-        unitTarget->GetContactPoint(m_caster, x, y, z, 3.666666f);
-    else
-        return;
 
-    // Only send MOVEMENTFLAG_WALK_MODE, client has strange issues with other move flags
-    m_caster->MonsterMoveWithSpeed(x, y, z, 24.f, true, true);
+        float angle = m_caster->GetRelativeAngle(pos.GetPositionX(), pos.GetPositionY());
+        float dist = m_caster->GetDistance(pos);
+        pos = m_caster->GetFirstCollisionPosition(dist, angle);
+
+        m_caster->GetMotionMaster()->MoveCharge(pos.m_positionX, pos.m_positionY, pos.m_positionZ);
+    }
 
     // not all charge effects used in negative spells
     if (unitTarget && unitTarget != m_caster && !IsPositiveSpell(m_spellInfo->Id))
@@ -7113,25 +7115,24 @@ void Spell::EffectBind(SpellEffectIndex eff_idx)
     Player* player = (Player*)unitTarget;
 
     uint32 area_id;
-    WorldLocation loc;
-    player->GetPosition(loc);
+    WorldLocation loc = player->GetWorldLocation();
     area_id = player->GetAreaId();
 
     player->SetHomebindToLocation(loc, area_id);
 
     // binding
     WorldPacket data(SMSG_BINDPOINTUPDATE, (4 + 4 + 4 + 4 + 4));
-    data << float(loc.coord_x);
-    data << float(loc.coord_y);
-    data << float(loc.coord_z);
-    data << uint32(loc.mapid);
+    data << float(loc.m_positionX);
+    data << float(loc.m_positionY);
+    data << float(loc.m_positionZ);
+    data << uint32(loc.m_mapId);
     data << uint32(area_id);
     player->SendDirectMessage(&data);
 
-    DEBUG_LOG("New Home Position X is %f", loc.coord_x);
-    DEBUG_LOG("New Home Position Y is %f", loc.coord_y);
-    DEBUG_LOG("New Home Position Z is %f", loc.coord_z);
-    DEBUG_LOG("New Home MapId is %u", loc.mapid);
+    DEBUG_LOG("New Home Position X is %f", loc.m_positionX);
+    DEBUG_LOG("New Home Position Y is %f", loc.m_positionY);
+    DEBUG_LOG("New Home Position Z is %f", loc.m_positionZ);
+    DEBUG_LOG("New Home MapId is %u", loc.m_mapId);
     DEBUG_LOG("New Home AreaId is %u", area_id);
 
     // zone update

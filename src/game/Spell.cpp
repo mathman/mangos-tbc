@@ -96,6 +96,14 @@ void SpellCastTargets::setDestination(float x, float y, float z)
     m_targetMask |= TARGET_FLAG_DEST_LOCATION;
 }
 
+void SpellCastTargets::setDestination(Position pos)
+{
+    m_destX = pos.m_positionX;
+    m_destY = pos.m_positionY;
+    m_destZ = pos.m_positionZ;
+    m_targetMask |= TARGET_FLAG_DEST_LOCATION;
+}
+
 void SpellCastTargets::setSource(float x, float y, float z)
 {
     m_srcX = x;
@@ -254,7 +262,7 @@ void SpellCastTargets::write(ByteBuffer& data) const
         data << m_strTarget;
 }
 
-Spell::Spell(Unit* caster, SpellEntry const* info, bool triggered, ObjectGuid originalCasterGUID, SpellEntry const* triggeredBy)
+Spell::Spell(Unit* caster, SpellEntry const* info, bool triggered, ObjectGuid originalCasterGUID, SpellEntry const* triggeredBy) : m_preGeneratedPath(PathFinder(m_caster))
 {
     MANGOS_ASSERT(caster != NULL && info != NULL);
     MANGOS_ASSERT(info == sSpellStore.LookupEntry(info->Id) && "`info` must be pointer to sSpellStore element");
@@ -1494,9 +1502,10 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
         {
             // Get a random point AT the circumference
             float angle = 2.0f * M_PI_F * rand_norm_f();
-            float dest_x, dest_y, dest_z;
-            m_caster->GetClosePoint(dest_x, dest_y, dest_z, 0.0f, radius, angle);
-            m_targets.setDestination(dest_x, dest_y, dest_z);
+            Position pos;
+            m_caster->GetClosePoint(pos.m_positionX, pos.m_positionY, pos.m_positionZ, 0.0f, radius, angle);
+            pos = m_caster->GetFirstCollisionPosition(radius, angle);
+            m_targets.setDestination(pos);
 
             // This targetMode is often used as 'last' implicitTarget for positive spells, that just require coordinates
             // and no unitTarget (e.g. summon effects). As MaNGOS always needs a unitTarget we add just the caster here.
@@ -1544,13 +1553,10 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                 case TARGET_TOTEM_EARTH: angle += M_PI_F * 1.75f; break;            // front - right
             }
 
-            float x, y;
-            float z = m_caster->GetPositionZ();
-            // Do not search for a free spot. TODO: Should there be searched for a free spot. There was once a discussion that in case this space was impossible (LOS) m_caster's position should be used.
-            // TODO Bring this back to memory and search for it!
-            m_caster->GetNearPoint2D(x, y, radius, angle);
-            m_caster->UpdateAllowedPositionZ(x, y, z);
-            m_targets.setDestination(x, y, z);
+            Position pos;
+            m_caster->GetClosePoint(pos.m_positionX, pos.m_positionY, pos.m_positionZ, 0.0f, radius, angle);
+            pos = m_caster->GetFirstCollisionPosition(radius, angle);
+            m_targets.setDestination(pos);
 
             // Add Summoner
             targetUnitMap.push_back(m_caster);
@@ -2346,12 +2352,13 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                     case TARGET_LEFT_FROM_VICTIM:   angle = M_PI_F / 2;   break;
                 }
 
-                float _target_x, _target_y, _target_z;
-                pTarget->GetClosePoint(_target_x, _target_y, _target_z, pTarget->GetObjectBoundingRadius(), radius, angle);
-                if (pTarget->IsWithinLOS(_target_x, _target_y, _target_z))
+                Position pos;
+                pTarget->GetClosePoint(pos.m_positionX, pos.m_positionY, pos.m_positionZ, 0.0f, radius, angle);
+                pos = pTarget->GetFirstCollisionPosition(radius, angle);
+                if (pTarget->IsWithinLOS(pos.m_positionX, pos.m_positionY, pos.m_positionZ))
                 {
                     targetUnitMap.push_back(m_caster);
-                    m_targets.setDestination(_target_x, _target_y, _target_z);
+                    m_targets.setDestination(pos);
                 }
             }
             break;
@@ -2386,9 +2393,10 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                     case TARGET_DYNAMIC_OBJECT_RIGHT_SIDE:  angle -= M_PI_F / 2;  break;
                 }
 
-                float x, y;
-                m_caster->GetNearPoint2D(x, y, radius + m_caster->GetObjectBoundingRadius(), angle);
-                m_targets.setDestination(x, y, m_caster->GetPositionZ());
+                Position pos;
+                m_caster->GetClosePoint(pos.m_positionX, pos.m_positionY, pos.m_positionZ, 0.0f, radius, angle);
+                pos = m_caster->GetFirstCollisionPosition(radius, angle);
+                m_targets.setDestination(pos);
             }
 
             targetUnitMap.push_back(m_caster);
@@ -2420,9 +2428,10 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                     case TARGET_POINT_AT_SW:    angle += 3*M_PI_F / 4;    break;
                 }
 
-                float x, y;
-                currentTarget->GetNearPoint2D(x, y, radius + currentTarget->GetObjectBoundingRadius(), angle);
-                m_targets.setDestination(x, y, currentTarget->GetPositionZ());
+                Position pos;
+                currentTarget->GetClosePoint(pos.m_positionX, pos.m_positionY, pos.m_positionZ, 0.0f, radius, angle);
+                pos = currentTarget->GetFirstCollisionPosition(radius, angle);
+                m_targets.setDestination(pos);
             }
             break;
         }
@@ -4819,6 +4828,35 @@ SpellCastResult Spell::CheckCast(bool strict)
                 if (m_caster->hasUnitState(UNIT_STAT_ROOT))
                     return SPELL_FAILED_ROOTED;
 
+                if (m_targets.m_targetMask & TARGET_FLAG_UNIT_MASK)
+                {
+                    Unit* target = m_targets.getUnitTarget();
+                    if (!target)
+                        return SPELL_FAILED_DONT_REPORT;
+
+                    float objSize = target->GetObjectSize();
+                    SpellRangeEntry const* srange = sSpellRangeStore.LookupEntry(m_spellInfo->rangeIndex);
+                    float max_range = GetSpellMaxRange(srange);
+                    float range = max_range * 1.5f + objSize; // can't be overly strict
+
+                    m_preGeneratedPath.setPathLengthLimit(range);
+                    // first try with raycast, if it fails fall back to normal path
+                    m_preGeneratedPath.setUseStrightPath(true);
+                    bool result = m_preGeneratedPath.calculate(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ() + target->GetObjectSize(), false);
+                    if (m_preGeneratedPath.getPathType() & PATHFIND_SHORTCUT)
+                        return SPELL_FAILED_OUT_OF_RANGE;
+                    else if (!result || m_preGeneratedPath.getPathType() & PATHFIND_NOPATH)
+                    {
+                        m_preGeneratedPath.setUseStrightPath(false);
+                        result = m_preGeneratedPath.calculate(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ() + target->GetObjectSize(), false);
+                        if (m_preGeneratedPath.getPathType() & PATHFIND_SHORTCUT)
+                            return SPELL_FAILED_OUT_OF_RANGE;
+                        else if (!result || m_preGeneratedPath.getPathType() & PATHFIND_NOPATH)
+                            return SPELL_FAILED_NOPATH;
+                    }
+
+                    m_preGeneratedPath.ReducePathLenghtByDist(objSize); // move back
+                }
                 break;
             }
             case SPELL_EFFECT_SKINNING:
