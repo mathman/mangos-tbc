@@ -1194,25 +1194,6 @@ void Map::CreateInstanceData(bool load)
     }
 }
 
-float Map::GetWaterOrGroundLevel(float x, float y, float z, float* ground /*= NULL*/, bool /*swim = false*/) const
-{
-    if (const_cast<Map*>(this)->getNGrid(x, y))
-    {
-        // we need ground level (including grid height version) for proper return water level in point
-        float ground_z = GetHeight(x, y, z);
-        if (ground)
-            *ground = ground_z;
-
-        GridMapLiquidData liquid_status;
-        TerrainInfo const* terrain = GetTerrain();
-        GridMapLiquidStatus res = terrain->getLiquidStatus(x, y, z, MAP_ALL_LIQUIDS, &liquid_status);
-
-        return res ? liquid_status.level : ground_z;
-    }
-
-    return VMAP_INVALID_HEIGHT_VALUE;
-}
-
 template void Map::Add(Corpse*);
 template void Map::Add(Creature*);
 template void Map::Add(GameObject*);
@@ -1996,13 +1977,12 @@ bool Map::GetHitPosition(float srcX, float srcY, float srcZ, float& destX, float
 float Map::GetHeight(float x, float y, float z, bool checkVMap /*= true*/, float maxSearchDist /*= DEFAULT_HEIGHT_SEARCH*/) const
 {
     float mapHeight = VMAP_INVALID_HEIGHT_VALUE;
-    if (const_cast<Map*>(this)->getNGrid(x, y))
+    if (GridMap* gmap = m_TerrainData->GetGrid(x, y))
     {
-        float staticHeight = m_TerrainData->GetHeightStatic(x, y, z);
-
-        // Get Dynamic Height around static Height (if valid)
-        float dynSearchHeight = 2.0f + (z < staticHeight ? staticHeight : z);
-        mapHeight = std::max<float>(staticHeight, m_dyn_tree.getHeight(x, y, dynSearchHeight, dynSearchHeight - staticHeight));
+        float gridHeight = gmap->getHeight(x, y);
+        // look from a bit higher pos to find the floor, ignore under surface case
+        if (z + 2.0f > gridHeight)
+            mapHeight = gridHeight;
     }
 
     float vmapHeight = VMAP_INVALID_HEIGHT_VALUE;
