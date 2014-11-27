@@ -20,6 +20,7 @@
 #define MANGOS_MOTIONMASTER_H
 
 #include "Common.h"
+#include "SharedDefines.h"
 #include <stack>
 #include <vector>
 

@@ -23,6 +23,7 @@ add_definitions(-DDT_POLYREF64)
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/vmap
+  ${CMAKE_CURRENT_SOURCE_DIR}/Warden
   ${CMAKE_CURRENT_SOURCE_DIR}/AuctionHouseBot
   ${CMAKE_CURRENT_SOURCE_DIR}/BattleGround
   ${CMAKE_CURRENT_SOURCE_DIR}/OutdoorPvP
@@ -290,6 +291,19 @@ set(SRC_GRP_VMAPS
     vmap/WorldModel.h
 )
 
+set(SRC_GRP_WARDEN
+    Warden/WardenBase.cpp
+    Warden/WardenBase.h
+    Warden/WardenDataStorage.cpp
+    Warden/WardenDataStorage.h
+    Warden/WardenMac.cpp
+    Warden/WardenMac.h
+    Warden/WardenModuleMac.h
+    Warden/WardenModuleWin.h
+    Warden/WardenWin.cpp
+    Warden/WardenWin.h
+)
+
 set(SRC_GRP_WORLD_HANDLERS
     AccountMgr.cpp
     AccountMgr.h
@@ -407,6 +421,7 @@ set(LIBRARY_SRCS
     ${SRC_GRP_SERVER}
     ${SRC_GRP_TOOL}
     ${SRC_GRP_VMAPS}
+    ${SRC_GRP_WARDEN}
     ${SRC_GRP_WORLD_HANDLERS}
     pchdef.cpp
     pchdef.h
@@ -465,6 +480,11 @@ source_group("Tool"
 source_group("vmaps"
   FILES
     ${SRC_GRP_VMAPS}
+)
+
+source_group("warden"
+  FILES
+    ${SRC_GRP_WARDEN}
 )
 
 source_group("World/Handlers"
