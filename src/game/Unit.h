@@ -651,8 +651,9 @@ class MovementInfo
         void AddMovementFlag(MovementFlags f) { moveFlags |= f; }
         void RemoveMovementFlag(MovementFlags f) { moveFlags &= ~f; }
         bool HasMovementFlag(MovementFlags f) const { return moveFlags & f; }
-        MovementFlags GetMovementFlags() const { return MovementFlags(moveFlags); }
-        void SetMovementFlags(MovementFlags f) { moveFlags = f; }
+        uint32 GetMovementFlags() const { return moveFlags; }
+        uint8 GetExtraUnitMovementFlags() const { return moveFlags2; }
+        void SetMovementFlags(uint32 f) { moveFlags = f; }
 
         // Position manipulations
         Position const* GetPos() const { return &pos; }
@@ -678,8 +679,8 @@ class MovementInfo
         Position const* GetTransportPos() const { return &t_pos; }
         uint32 GetTransportTime() const { return t_time; }
         uint32 GetFallTime() const { return fallTime; }
-        void ChangeOrientation(float o) { pos.m_orientation = o; }
-        void ChangePosition(float x, float y, float z, float o) { pos.m_positionX = x; pos.m_positionY = y; pos.m_positionZ = z; pos.m_orientation = o; }
+        float GetPitch() const { return s_pitch; }
+        float GetSplineInfo() const { return u_unk1; }
         void UpdateTime(uint32 _time) { time = _time; }
 
         struct JumpInfo
@@ -708,18 +709,6 @@ class MovementInfo
         // spline
         float    u_unk1;
 };
-
-inline ByteBuffer& operator<< (ByteBuffer& buf, MovementInfo const& mi)
-{
-    mi.Write(buf);
-    return buf;
-}
-
-inline ByteBuffer& operator>> (ByteBuffer& buf, MovementInfo& mi)
-{
-    mi.Read(buf);
-    return buf;
-}
 
 namespace Movement
 {
@@ -1962,6 +1951,8 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
         float GetTransOffsetZ() const { return m_movementInfo.GetTransportPos()->m_positionZ; }
         float GetTransOffsetO() const { return m_movementInfo.GetTransportPos()->m_orientation; }
         uint32 GetTransTime() const { return m_movementInfo.GetTransportTime(); }
+
+        void BuildMovementPacket(ByteBuffer *data) const;
 
         // Movement info
         MovementInfo m_movementInfo;

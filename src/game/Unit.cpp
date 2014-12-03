@@ -427,10 +427,9 @@ bool Unit::haveOffhandWeapon() const
 
 void Unit::SendHeartBeat()
 {
-    m_movementInfo.UpdateTime(WorldTimer::getMSTime());
     WorldPacket data(MSG_MOVE_HEARTBEAT, 64);
     data << GetPackGUID();
-    data << m_movementInfo;
+    BuildMovementPacket(&data);
     SendMessageToSet(&data, true);
 }
 
@@ -9801,4 +9800,43 @@ void Unit::DisableSpline()
 {
     m_movementInfo.RemoveMovementFlag(MovementFlags(MOVEFLAG_SPLINE_ENABLED | MOVEFLAG_FORWARD));
     movespline->_Interrupt();
+}
+
+void Unit::BuildMovementPacket(ByteBuffer *data) const
+{
+    *data << m_movementInfo.GetMovementFlags();             // movement flags
+    *data << m_movementInfo.GetExtraUnitMovementFlags();    // 2.3.0
+    *data << uint32(WorldTimer::getMSTime());                       // time / counter
+    *data << GetPositionX();
+    *data << GetPositionY();
+    *data << GetPositionZ();
+    *data << GetOrientation();
+
+    if (m_movementInfo.HasMovementFlag(MOVEFLAG_ONTRANSPORT))
+    {
+        *data << m_movementInfo.GetTransportGuid();
+        *data << GetTransOffsetX();
+        *data << GetTransOffsetY();
+        *data << GetTransOffsetZ();
+        *data << GetTransOffsetO();
+        *data << GetTransTime();
+    }
+
+    if (m_movementInfo.HasMovementFlag(MovementFlags(MOVEFLAG_SWIMMING | MOVEFLAG_FLYING2)))
+    {
+        *data << m_movementInfo.GetPitch();
+    }
+
+    *data << m_movementInfo.GetFallTime();
+
+    if (m_movementInfo.HasMovementFlag(MOVEFLAG_FALLING))
+    {
+        *data << m_movementInfo.GetJumpInfo().velocity;
+        *data << m_movementInfo.GetJumpInfo().sinAngle;
+        *data << m_movementInfo.GetJumpInfo().cosAngle;
+        *data << m_movementInfo.GetJumpInfo().xyspeed;
+    }
+
+    if (m_movementInfo.HasMovementFlag(MOVEFLAG_SPLINE_ELEVATION))
+        *data << m_movementInfo.GetSplineInfo();
 }

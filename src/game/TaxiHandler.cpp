@@ -197,7 +197,7 @@ void WorldSession::HandleMoveSplineDoneOpcode(WorldPacket& recv_data)
 
     MovementInfo movementInfo;                              // used only for proper packet read
 
-    recv_data >> movementInfo;
+    movementInfo.Read(recv_data);
     recv_data >> Unused<uint32>();                          // unk
 
 

@@ -1634,10 +1634,6 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
         if (GetMap()->GetGameObject(GetGuidValue(PLAYER_DUEL_ARBITER)))
             DuelComplete(DUEL_FLED);
 
-    // reset movement flags at teleport, because player will continue move with these flags after teleport
-    m_movementInfo.SetMovementFlags(MOVEFLAG_NONE);
-    DisableSpline();
-
     if ((GetMapId() == mapid) && (!m_transport))            // TODO the !m_transport might have unexpected effects when teleporting from transport to other place on same map
     {
         // lets reset far teleport flag if it wasn't reset during chained teleports
@@ -1674,9 +1670,8 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
         // near teleport, triggering send MSG_MOVE_TELEPORT_ACK from client at landing
         if (!GetSession()->PlayerLogout())
         {
-            WorldPacket data;
-            BuildTeleportAckMsg(data, x, y, z, orientation);
-            GetSession()->SendPacket(&data);
+            Relocate(x, y, z, orientation);
+            SendTeleportAckPacket();
         }
     }
     else
@@ -20264,15 +20259,13 @@ void Player::SendClearCooldown(uint32 spell_id, Unit* target)
     SendDirectMessage(&data);
 }
 
-void Player::BuildTeleportAckMsg(WorldPacket& data, float x, float y, float z, float ang) const
+void Player::SendTeleportAckPacket() const
 {
-    MovementInfo mi = m_movementInfo;
-    mi.ChangePosition(x, y, z, ang);
-
-    data.Initialize(MSG_MOVE_TELEPORT_ACK, 41);
+    WorldPacket data(MSG_MOVE_TELEPORT_ACK, 41);
     data << GetPackGUID();
     data << uint32(0);                                      // this value increments every time
-    data << mi;
+    BuildMovementPacket(&data);
+    GetSession()->SendPacket(&data);
 }
 
 bool Player::HasMovementFlag(MovementFlags f) const
